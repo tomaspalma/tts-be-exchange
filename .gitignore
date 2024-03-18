@@ -23,3 +23,6 @@ django/celerybeat-schedule
 
 # stats related graphs
 django/university/stats_graphs/*
+
+django/tts_be/saml.key
+django/tts_be/saml.cert

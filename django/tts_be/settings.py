@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 from pathlib import Path
 import os 
+import saml2
+import saml2.saml
 from dotenv import dotenv_values
 
 CONFIG={
@@ -41,6 +43,7 @@ ALLOWED_HOSTS = ['0.0.0.0', 'localhost']
 INSTALLED_APPS = [ 
     'corsheaders',
     'django.contrib.admin',
+    'djangosaml2',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions', # legacy
@@ -60,6 +63,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'djangosaml2.middleware.SamlSessionMiddleware'
 ]
 
 ROOT_URLCONF = 'tts_be.urls'
@@ -81,6 +85,11 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'tts_be.wsgi.application'
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'djangosaml2.backends.Saml2Backend'
+)
 
 
 # Database
@@ -150,3 +159,55 @@ REST_FRAMEWORK = {
 
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
+
+SAML_SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = True
+
+LOGIN_URL = '/saml2/login/'
+
+SAML_DEFAULT_BINDING = saml2.BINDING_HTTP_REDIRECT
+SAML_CONFIG = {
+    'xmlsec_binary': '/usr/bin/xmlsec1',
+    'allow_unknown_attributes': True,
+    'assertion_consumer_service_url': 'https://example.com/saml2/acs/',
+    'entityid': 'ni.fe.up.pt/tts/exchange',
+    'service': {
+       'sp': {
+            'name': 'NIAEFEUP TTS Exchange',
+            'name_id_format': saml2.saml.NAMEID_FORMAT_TRANSIENT,
+            'signing_algorithm':  saml2.xmldsig.SIG_RSA_SHA512,
+            'digest_algorithm':  saml2.xmldsig.DIGEST_SHA512,
+            'want_assertions_signed': True,
+            'required_attributes': ['urn:oid:2.16.620.1.23', 'CommonName'],
+            'force_authn': True,
+            'key_file': './saml.key',  # private part
+            'cert_file': './saml.cert',  # public part
+            'encryption_keypairs': [{
+                'key_file': './saml.key',
+                'cert_file': './saml.cert'
+            }],
+            'want_response_signed': True,
+            'authn_requests_signed': True,
+            'logout_requests_signed': True,
+            'endpoints': {
+              # url and binding to the assetion consumer service view
+              # do not change the binding or service name
+              'assertion_consumer_service': [
+                  ('https://localhost:8100/saml2/acs/',
+                   saml2.BINDING_HTTP_REDIRECT),
+                  ('https://localhost:8100/saml2/acs/post',
+                   saml2.BINDING_HTTP_POST),
+                  ],
+              # url and binding to the single logout service view
+              # do not change the binding or service name
+              'single_logout_service': [
+                  # Disable next two lines for HTTP_REDIRECT for IDP's that only support HTTP_POST. Ex. Okta:
+                  ('https://localhost:8100/saml2/ls/',
+                   saml2.BINDING_HTTP_REDIRECT),
+                  ('https://localhost:8100/saml2/ls/post',
+                   saml2.BINDING_HTTP_POST),
+                  ],
+              },
+        }
+    }
+}
