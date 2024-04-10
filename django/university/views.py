@@ -1,4 +1,6 @@
 from django.http.response import HttpResponse
+from rest_framework.views import APIView
+from django.core.paginator import Paginator
 from tts_be.settings import JWT_KEY, VERIFY_EXCHANGE_TOKEN_EXPIRATION_SECONDS
 from university.exchange.utils import course_unit_name, curr_semester_weeks, get_student_schedule_url, build_student_schedule_dict, exchange_overlap, build_student_schedule_dicts
 from university.exchange.utils import ExchangeStatus, build_new_schedules, check_for_overlaps, convert_sigarra_schedule
@@ -386,3 +388,33 @@ def verify_direct_exchange(request, token):
 
     except Exception as e:
         return HttpResponse(status=500)
+
+@api_view(["GET"])
+def direct_exchange_history(request):
+    exchanges = DirectExchangeParticipants.objects.filter(
+        participant=request.session["username"],
+    )
+    
+    exchange_status_filter: str = request.GET.get('filter')
+    accepted_filter_values = ["pending", "accepted", "rejected"]
+    if exchange_status_filter != None and exchange_status_filter in accepted_filter_values:
+        exchanges.filter(accepted=exchange_status_filter)  
+    
+    paginator = Paginator(exchanges, 15)
+    print(paginator.get_page(0))
+    return JsonResponse(serializers.serialize('json', exchanges), safe=False)
+
+class DirectExchangeView(APIView):
+    def delete(self, request):
+        exchange_id = request.POST.get('exchange_id')
+        exchange = DirectExchange.objects.get(pk=exchange_id)
+        exchange_participants = DirectExchangeParticipants.objects.filter(direct_exchange=exchange_id)
+        
+        for participant in exchange_participants: 
+            # avisar os participantes
+            pass
+
+        # Apagar a troca direta
+        exchange.delete()
+        return JsonResponse({"status": "refactoring"}, safe=False)
+        
