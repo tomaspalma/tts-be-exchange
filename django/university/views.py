@@ -394,15 +394,28 @@ def direct_exchange_history(request):
     exchanges = DirectExchangeParticipants.objects.filter(
         participant=request.session["username"],
     )
-    
-    exchange_status_filter: str = request.GET.get('filter')
-    accepted_filter_values = ["pending", "accepted", "rejected"]
-    if exchange_status_filter != None and exchange_status_filter in accepted_filter_values:
-        exchanges.filter(accepted=exchange_status_filter)  
-    
-    paginator = Paginator(exchanges, 15)
-    print(paginator.get_page(0))
-    return JsonResponse(serializers.serialize('json', exchanges), safe=False)
+
+    exchanges_map = dict();
+    exchanges_json = json.loads(serializers.serialize('json', exchanges))
+    exchanges_json = map(lambda entry: entry['fields'], exchanges_json)
+    for exchange in exchanges_json:
+        if exchanges_map.get(exchange['direct_exchange']):
+            exchanges_map[exchange['direct_exchange']]['class_exchanges'].append(exchange)
+        else:
+            exchanges_map[exchange['direct_exchange']] = {
+                'id' : exchange['direct_exchange'],
+                'class_exchanges' : [exchange],
+                'status' : 'accepted' if exchange['accepted'] else 'pending' 
+            }
+
+    # exchange_status_filter: str = request.GET.get('filter')
+    # accepted_filter_values = ["pending", "accepted", "rejected"]
+    # if exchange_status_filter != None and exchange_status_filter in accepted_filter_values:
+    #     exchanges.filter(accepted=exchange_status_filter)  
+    # 
+    # paginator = Paginator(exchanges, 15)
+
+    return JsonResponse(list(exchanges_map.values()), safe=False)
 
 class DirectExchangeView(APIView):
     def delete(self, request):
