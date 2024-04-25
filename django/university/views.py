@@ -18,7 +18,7 @@ from university.models import Info
 from django.http import JsonResponse
 from django.core import serializers
 from rest_framework.decorators import api_view
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.db import transaction
 import requests
 import os 
@@ -328,7 +328,7 @@ def submit_direct_exchange(request):
     if status == ExchangeStatus.FETCH_SCHEDULE_ERROR:
         return HttpResponse(status=trailing)
 
-    exchange_model = DirectExchange(accepted=False)
+    exchange_model = DirectExchange(accepted=False, issuer=request.session["username"])
 
     (status, trailing) = build_new_schedules(student_schedules, exchanges, request.session["username"])
     if status == ExchangeStatus.STUDENTS_NOT_ENROLLED:
@@ -391,14 +391,21 @@ def verify_direct_exchange(request, token):
 
 @api_view(["GET"])
 def direct_exchange_history(request):
-    exchanges = DirectExchangeParticipants.objects.filter(
-        participant=request.session["username"],
+    exchangesT = DirectExchange.objects.filter(
+        issuer=request.session["username"],
     )
+
+    exchanges_id =  list(map(lambda entry: entry.id, exchangesT))
+
+    q = Q(direct_exchange__in = exchanges_id) & ~Q(participant=request.session["username"])
+    exchanges = DirectExchangeParticipants.objects.filter(q)
 
     exchanges_map = dict();
     exchanges_json = json.loads(serializers.serialize('json', exchanges))
     exchanges_json = map(lambda entry: entry['fields'], exchanges_json)
     for exchange in exchanges_json:
+        exchange['other_student'] = exchange.pop('participant')
+        print(exchange)
         if exchanges_map.get(exchange['direct_exchange']):
             exchanges_map[exchange['direct_exchange']]['class_exchanges'].append(exchange)
         else:
