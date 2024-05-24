@@ -412,3 +412,15 @@ def verify_direct_exchange(request, token):
 
     except Exception as e:
         return HttpResponse(status=500)
+
+@api_view(["GET"])
+def export_exchanges():
+    direct_exchange_ids = DirectExchangeParticipants.objects.filter(
+        direct_exchange__accepted=True
+    ).values_list('direct_exchange', flat=True)
+    direct_exchanges = DirectExchange.objects.filter(id__in=direct_exchange_ids).order_by('date')
+
+    for exchange in direct_exchanges:
+        participants = DirectExchangeParticipants.objects.filter(direct_exchange=exchange).order_by('date')
+
+    return JsonResponse(participants, safe=False)
