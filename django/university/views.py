@@ -1,6 +1,8 @@
+import csv
 import random
 import string
 from datetime import datetime, timedelta
+from types import new_class
 from django.utils import timezone
 from django.http.response import HttpResponse
 from rest_framework.views import APIView
@@ -416,6 +418,15 @@ def verify_direct_exchange(request, token):
 
 @api_view(["GET"])
 def export_exchanges(request):
+
+    response = HttpResponse(
+        content_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="exchange_data.csv"'},
+    )
+
+    writer = csv.writer(response)
+    writer.writerow(["student", "course_unit", "old_class", "new_class"])
+
     direct_exchange_ids = DirectExchangeParticipants.objects.filter(
         direct_exchange__accepted=True
     ).values_list('direct_exchange', flat=True)
@@ -423,8 +434,15 @@ def export_exchanges(request):
 
     for exchange in direct_exchanges:
         participants = DirectExchangeParticipants.objects.filter(direct_exchange=exchange).order_by('date')
+        for participant in participants:
+            writer.writerow([
+                participant.participant,
+                participant.course_unit_id,
+                participant.old_class,
+                participant.new_class
+            ])
 
-    return JsonResponse(participants, safe=False)
+    return response
 
 @api_view(["GET"])
 def direct_exchange_history(request):
