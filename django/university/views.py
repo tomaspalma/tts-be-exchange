@@ -202,8 +202,8 @@ def login(request):
             for cookie in response.cookies:
                 new_response.set_cookie(cookie.name, cookie.value, httponly=True, secure=True)
             
-            if ExchangeAdmin.objects.filter(username=username).exists():
-                print("is admin")
+            admin = ExchangeAdmin.objects.filter(username=username).exists()
+            request.session["admin"] = admin
 
             request.session["username"] = login_data["pv_login"]
             return new_response
@@ -429,11 +429,7 @@ def verify_direct_exchange(request, token):
 
 @api_view(["GET"])
 def is_admin(request):
-    response = HttpResponse()
-    response.status_code = 200
-    if not ExchangeAdmin.objects.filter(username=request.session["username"]).exists():
-        response.status_code = 403
-    return response
+    return JsonResponse({"admin" : request.session["admin"]}, safe=False)
 
 @api_view(["GET"])
 def export_exchanges(request):
