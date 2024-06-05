@@ -1,6 +1,5 @@
 import csv
-import random
-import string
+from django.core.mail import send_mail
 from datetime import datetime, timedelta
 from types import new_class
 from django.utils import timezone
@@ -34,6 +33,7 @@ import datetime
 import time
 from django.utils import timezone
 from django.core.cache import cache
+import hashlib
 # Create your views here. 
 
 
@@ -232,10 +232,14 @@ def student_schedule(request, student):
             return HttpResponse(status=response.status_code)
 
         schedule_data = response.json()['horario']
+        old_schedule = hashlib.sha256(json.dumps(schedule_data, sort_keys=True).encode()).hexdigest()
 
         update_schedule_accepted_exchanges(student, schedule_data, request.COOKIES)
 
-        new_response = JsonResponse(convert_sigarra_schedule(schedule_data), safe=False)
+        new_schedule = hashlib.sha256(json.dumps(schedule_data, sort_keys=True).encode()).hexdigest()
+        sigarra_synchronized = old_schedule == new_schedule
+
+        new_response = JsonResponse({"schedule": convert_sigarra_schedule(schedule_data), "noChanges": sigarra_synchronized}, safe=False)
         new_response.status_code = response.status_code
         return new_response 
         
@@ -370,6 +374,12 @@ def submit_direct_exchange(request):
         if not(participant in tokens_to_generate):
             token = jwt.encode({"username": participant, "exchange_id": exchange_model.id, "exp": (datetime.datetime.now() + datetime.timedelta(seconds=VERIFY_EXCHANGE_TOKEN_EXPIRATION_SECONDS)).timestamp()}, JWT_KEY, algorithm="HS256")
             tokens_to_generate[participant] = token
+            send_mail(
+                'Confirmação de troca',
+                f'https://localhost:3100/tts/verify_direct_exchange/{token}',
+                'tts@exchange.com',
+                [f'up{participant}@up.pt'],
+                fail_silently=False)
         inserted_exchange.save()
     
     # 2. Send confirmation email
