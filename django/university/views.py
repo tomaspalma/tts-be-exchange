@@ -218,7 +218,17 @@ def login(request):
 
 @api_view(["POST"])
 def logout(request):
-    del request.session["username"]
+
+    try:
+        del request.session["username"]
+    except KeyError:
+        pass
+
+    try:
+        del request.session["admin"]
+    except KeyError:
+        pass
+
     return HttpResponse(status=200)
 
 """
