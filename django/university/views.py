@@ -475,7 +475,11 @@ def verify_direct_exchange(request, token):
             direct_exchange.update(accepted=True)
 
             marketplace_exchange = direct_exchange.first().marketplace_exchange
+
             if(marketplace_exchange != None):
+                direct_exchange_object = direct_exchange.first()
+                direct_exchange_object.marketplace_exchange = None
+                direct_exchange_object.save()
                 marketplace_exchange.delete()
 
         if cache.get(token) != None:
