@@ -619,6 +619,7 @@ def direct_exchange_history(request):
                 'course_unit_id' : participant.course_unit_id,
                 'old_class' : participant.old_class,
                 'new_class' : participant.new_class,
+                'accepted' : participant.accepted,
                 'other_student' : participant.participant
             })
 
